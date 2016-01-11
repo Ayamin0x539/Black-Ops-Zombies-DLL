@@ -1,13 +1,15 @@
 #include <iostream>
 #include <string>
 #include <Windows.h>
+#include "constants.h"
 
 using namespace std;
 
 BOOL ammoOn = false;
-DWORD ammoAddress = 0x00697A10;
-char infAmmoOp[] = "\x90\x90\x90";
-char originalAmmoOp[] = "\x89\x50\x04";
+BOOL godOn = false;
+BOOL noclipOn = false;
+BOOL lottoPointsOn = false;
+
 
 void playOn() {
 	Beep(523, 200);
@@ -20,7 +22,7 @@ void playOff() {
 }
 
 // Writes char array to the given address in memory
-void writeToMemory(DWORD addressToWrite, char* valueToWrite, int numBytes) {
+void writeStringToMemory(DWORD addressToWrite, char* valueToWrite, int numBytes) {
 	unsigned long oldProtection;
 
 	VirtualProtect((LPVOID)addressToWrite, numBytes, PAGE_EXECUTE_READWRITE, &oldProtection);
@@ -28,30 +30,95 @@ void writeToMemory(DWORD addressToWrite, char* valueToWrite, int numBytes) {
 	VirtualProtect((LPVOID)addressToWrite, numBytes, oldProtection, NULL);
 }
 
+void writeIntToMemory(DWORD addressToWrite, int valueToWrite) {
+	unsigned long oldProtection;
 
-void writeInfAmmo() {
-	writeToMemory(ammoAddress, infAmmoOp, 3);
+	VirtualProtect((LPVOID)addressToWrite, 4, PAGE_EXECUTE_READWRITE, &oldProtection);
+	*(int*)addressToWrite = valueToWrite;
+	VirtualProtect((LPVOID)addressToWrite, 4, oldProtection, NULL);
+}
+
+DWORD getBaseAddress() {
+	return (DWORD)GetModuleHandleA("BlackOps.exe");
+}
+
+void enableInfAmmo() {
+	writeStringToMemory(getBaseAddress() + AMMO_DEC_ADDR_OFF, INF_AMMO_OP_CODE, 3);
 	playOn();
 }
 
 void disableInfAmmo() {
-	writeToMemory(ammoAddress, originalAmmoOp, 3);
+	writeStringToMemory(getBaseAddress() + AMMO_DEC_ADDR_OFF, ORIG_AMMO_OP_CODE, 3);
 	playOff();
 }
 
+void enableGodMode() {
+	writeStringToMemory(getBaseAddress() + HEALTH_DEC_ADDR_OFF, INF_HEALTH_OP_CODE, 6);
+	playOn();
+}
+
+void disableGodMode() {
+	writeStringToMemory(getBaseAddress() + HEALTH_DEC_ADDR_OFF, ORIG_HEALTH_OP_CODE, 6);
+	playOff();
+}
+
+void giveLottoPoints() {
+	writeIntToMemory(getBaseAddress() + POINTS_ADDR_OFF, POINTS_LOTTO);
+	playOn();
+}
+
+void removeLottoPoints() {
+	writeIntToMemory(getBaseAddress() + POINTS_ADDR_OFF, 500);
+	playOff();
+}
+
+void enableNoclip() {
+	writeIntToMemory(getBaseAddress() + NOCLIP_ADDR_OFF, NOCLIP_ON);
+	playOn();
+}
+
+void disableNoclip() {
+	writeIntToMemory(getBaseAddress() + NOCLIP_ADDR_OFF, NOCLIP_OFF);
+}
 
 void loop() {
+
 	while (1) {
 		if (GetAsyncKeyState(VK_F1)) {
 			if (!ammoOn) {
 				ammoOn = true;
-				writeInfAmmo();
-			}
-			else {
+				enableInfAmmo();
+			} else {
 				ammoOn = false;
 				disableInfAmmo();
 			}
 		}
+		else if (GetAsyncKeyState(VK_F2)) {
+			if (!godOn) {
+				godOn = true;
+				enableGodMode();
+			} else {
+				godOn = false;
+				disableGodMode();
+			}
+		} else if (GetAsyncKeyState(VK_F3)) {
+			if (!lottoPointsOn) {
+				lottoPointsOn = true;
+				giveLottoPoints();
+			} else {
+				lottoPointsOn = false;
+				removeLottoPoints();
+			}
+		} else if (GetAsyncKeyState(VK_F4)) {
+			if (!noclipOn) {
+				noclipOn = true;
+				enableNoclip();
+			} else {
+				noclipOn = false;
+				disableNoclip();
+			}
+		}
+
 		Sleep(100);
 	}
 }
